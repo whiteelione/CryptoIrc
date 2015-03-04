@@ -1,5 +1,9 @@
 package cryptoIrcServer.Units;
 
+/**
+ *
+ * @author Илья
+ */
 public class User {
     private int mId;
     

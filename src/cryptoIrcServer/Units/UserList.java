@@ -1,10 +1,14 @@
 package cryptoIrcServer.Units;
 
+/**
+ *
+ * @author Илья
+ */
 import java.util.ArrayList;
 
 public class UserList {
     
-    private ArrayList<User> mList;
+    private final ArrayList<User> mList;
     
     public UserList(){
         mList = new ArrayList<>();
@@ -29,14 +33,10 @@ public class UserList {
     }
     
     public boolean idIsFree(int id){
-        if(userExists(id)){
-            return false;
-        }else{
-            return true;
-        }
+        return !userExists(id);
     }
     
-    public synchronized int AddUser(User user){
+    public synchronized int addUser(User user){
         int freeId = getFreeId();
         user.setId(freeId);
         mList.add(user);
@@ -45,7 +45,7 @@ public class UserList {
     
     private int getFreeId(){
         int id = 10000;
-        while(!idIsFree(id)){
+        while(userExists(id)){
             id++;
         }
         return id;

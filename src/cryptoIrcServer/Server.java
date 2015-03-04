@@ -1,7 +1,13 @@
 package cryptoIrcServer;
 
+/**
+ *
+ * @author Илья
+ */
 import IRCLibrary.SharedClasses.Message;
 import IRCLibrary.SharedClasses.RSA;
+import cryptoIrcServer.Units.AuthList;
+import cryptoIrcServer.Units.AuthNode;
 import cryptoIrcServer.Units.UserList;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -10,13 +16,18 @@ import java.util.logging.Logger;
 
 public class Server{
    
-    private ServerSocket       mServerSocket;
-    private final int          mPort;
-    private final int          mMaxClientCount;    
+    private final byte[] NULLMESSAGE = new byte[] { 0 };
     
-    private final UserList     mUserList;
+    private ServerSocket    mServerSocket;
+    private final int       mPort;
+    private final int       mMaxClientCount;    
     
-    private ServerConsole mConsole;
+    private final UserList  mUserList;
+    private final AuthList  mAuthList;
+    
+    private ServerConsole   mConsole;
+    
+    private RSA             mRsa;
     
     public Server(int port, int maxClients){
         mConsole = new ServerConsole(this);
@@ -29,6 +40,9 @@ public class Server{
         mPort = port;
         mMaxClientCount = maxClients;
         mUserList = new UserList();
+        mAuthList = new AuthList(100);
+        mRsa = new RSA();
+        mRsa.generateKey();
     }
     
     public void Start(){
@@ -38,31 +52,54 @@ public class Server{
     }
     
     public Object ProcessMessage(Object obj){
-        mConsole.println("Recieved...");
         Message msg = (Message)obj;
-        msg.PrintConsole();
         
         Message answer;
         
         switch(msg.getMessageType()){
-            case authentication:
-                answer = new Message(Message.MessageType.authentication, null, null, null);
+            case authGetPublicKey:
+                answer = StartAuthentication(msg);
+                break;
+            case authLogin:
+                answer = ClientLogin(msg);
                 break;
             default:
-                answer = new Message(Message.MessageType.authentication, null, null, null);
+                answer = new Message(0, Message.MessageType.error, NULLMESSAGE, NULLMESSAGE, NULLMESSAGE);
                 break;
         }
         
         return answer;
     }
     
+    private Message ClientLogin(Message msg){
+        if(mAuthList.CheckAuth(msg.getSessionId(), msg.getlParam(), msg.getrParam(), mRsa.getPrivateKey())){
+            AuthNode node = mAuthList.findById(msg.getSessionId());
+            byte[] loginCrypted = node.getLogin();
+            byte[] passwordCrypted = node.getPasswrod();
+            byte[] xorKey = msg.getlParam();
+            
+            return new Message(
+                msg.getSessionId(),
+                Message.MessageType.authLogin,
+                "Login success.".getBytes(),
+                NULLMESSAGE,
+                NULLMESSAGE);
+        }
+        return new Message(
+                msg.getSessionId(),
+                Message.MessageType.authLogin,
+                "Login failed.".getBytes(),
+                NULLMESSAGE,
+                NULLMESSAGE);
+    }
     
-    private void StartAuthentication(){
-        RSA rsa = new RSA();
-        rsa.generateKey();
-        byte[] publicKey = rsa.getPublicKeyB();
+    private Message StartAuthentication(Message msg){
+        byte[] publicKey = mRsa.getPublicKeyB();
         
-        Message msg = new Message(Message.MessageType.authentication, "RSAkey".getBytes(), publicKey, null);
+        AuthNode node = new AuthNode(0, msg.getMessage(), msg.getlParam(), msg.getrParam());
+        int authId = mAuthList.addUser(node);
+        
+        return new Message(authId, Message.MessageType.authGetPublicKey, "RSAkey".getBytes(), publicKey, NULLMESSAGE);
     }
     
     public void Stop(){

@@ -1,7 +1,9 @@
 package cryptoIrcServer;
 
-
-
+/**
+ *
+ * @author Илья
+ */
 import java.io.Console;
 
 public class ServerConsole {

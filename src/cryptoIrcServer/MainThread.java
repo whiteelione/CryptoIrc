@@ -1,7 +1,9 @@
 package cryptoIrcServer;
 
-
-
+/**
+ *
+ * @author Илья
+ */
 public class MainThread {
     
     public static void main(String[] args) {
