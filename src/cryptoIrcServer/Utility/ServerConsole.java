@@ -1,9 +1,10 @@
-package cryptoIrcServer;
+package cryptoIrcServer.Utility;
 
 /**
  *
  * @author Илья
  */
+import cryptoIrcServer.Server;
 import java.io.Console;
 
 public class ServerConsole {

@@ -1,4 +1,4 @@
-package cryptoIrcServer.Units;
+package cryptoIrcServer.Units.Authentication;
 
 /**
  *

@@ -16,7 +16,7 @@ public class UserList {
     
     public User findById(int id){
         for(User u : mList){
-            if(u.getId() == id){
+            if(u.getSessionId() == id){
                 return u;
             }
         }
@@ -25,7 +25,7 @@ public class UserList {
     
     public boolean userExists(int id){
         for(User u : mList){
-            if(u.getId() == id){
+            if(u.getSessionId() == id){
                 return true;
             }
         }
@@ -38,7 +38,7 @@ public class UserList {
     
     public synchronized int addUser(User user){
         int freeId = getFreeId();
-        user.setId(freeId);
+        user.setSessionId(freeId);
         mList.add(user);
         return freeId;
     }

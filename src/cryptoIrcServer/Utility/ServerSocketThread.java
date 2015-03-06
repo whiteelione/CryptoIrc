@@ -1,10 +1,11 @@
-package cryptoIrcServer;
+package cryptoIrcServer.Utility;
 
 /**
  *
  * @author Илья
  */
 import IRCLibrary.SharedClasses.Message;
+import cryptoIrcServer.Server;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -43,19 +44,12 @@ public class ServerSocketThread implements Runnable{
     }
     
     private void ProcessMessage(Object obj){
-        System.out.println("Получено:");
-        Message msg1 = (Message)obj;
-        msg1.PRINT();
         Object answer = mServer.ProcessMessage(obj);
-        
             
         ObjectOutputStream output;
         try {
             output = new ObjectOutputStream(mSocket.getOutputStream());
             output.writeObject(answer);
-            System.out.println("Отправлено:");
-            Message msg = (Message)answer;
-            msg.PRINT();
             output.flush();
             output.close();
         } catch (IOException ex) {

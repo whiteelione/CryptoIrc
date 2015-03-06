@@ -1,4 +1,4 @@
-package cryptoIrcServer.Units;
+package cryptoIrcServer.Units.Authentication;
 
 /**
  *
@@ -8,15 +8,15 @@ public class AuthNode {
     int     mId;
     byte[]  mAuthWord;
     byte[]  mLogin;
-    byte[]  mPasswrod;
+    byte[]  mPassword;
     
     private AuthNode(){}
     
-    public AuthNode(int id, byte[] key, byte[] login, byte[] passwrod) {
+    public AuthNode(int id, byte[] key, byte[] login, byte[] password) {
         this.mId = id;
         this.mAuthWord = key;
         this.mLogin = login;
-        this.mPasswrod = passwrod;
+        this.mPassword = password;
     }
 
     public int getId() {
@@ -35,7 +35,7 @@ public class AuthNode {
         return mLogin;
     }
 
-    public byte[] getPasswrod() {
-        return mPasswrod;
+    public byte[] getPassword() {
+        return mPassword;
     }
 }

@@ -4,19 +4,32 @@ package cryptoIrcServer;
  *
  * @author Илья
  */
+import cryptoIrcServer.Utility.ServerSocketThread;
+import cryptoIrcServer.Utility.ServerConsole;
 import IRCLibrary.SharedClasses.Message;
+import IRCLibrary.SharedClasses.Message.MessageType;
 import IRCLibrary.SharedClasses.RSA;
-import cryptoIrcServer.Units.AuthList;
-import cryptoIrcServer.Units.AuthNode;
+import IRCLibrary.SharedClasses.XOR;
+import cryptoIrcServer.Units.Authentication.AuthList;
+import cryptoIrcServer.Units.Authentication.AuthNode;
+import cryptoIrcServer.Units.User;
 import cryptoIrcServer.Units.UserList;
+import cryptoIrcServer.Utility.ServerLogger;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 public class Server{
    
-    private final byte[] NULLMESSAGE = new byte[] { 0 };
+    private final byte[] EMPTY_BYTE_ARRAY = new byte[] { };
+    private final int    SESSION_KEY_LENGTH = 32;
     
     private ServerSocket    mServerSocket;
     private final int       mPort;
@@ -27,7 +40,9 @@ public class Server{
     
     private ServerConsole   mConsole;
     
-    private RSA             mRsa;
+    private final RSA       mRsa;
+    
+    private final Random    random;
     
     public Server(int port, int maxClients){
         mConsole = new ServerConsole(this);
@@ -43,6 +58,7 @@ public class Server{
         mAuthList = new AuthList(100);
         mRsa = new RSA();
         mRsa.generateKey();
+        random = new Random();
     }
     
     public void Start(){
@@ -57,14 +73,15 @@ public class Server{
         Message answer;
         
         switch(msg.getMessageType()){
-            case authGetPublicKey:
+            case authGetRsaKey:
                 answer = StartAuthentication(msg);
+                ServerLogger.StartAuthLog(answer.getSessionId());
                 break;
-            case authLogin:
+            case authTryLogin:
                 answer = ClientLogin(msg);
                 break;
             default:
-                answer = new Message(0, Message.MessageType.error, NULLMESSAGE, NULLMESSAGE, NULLMESSAGE);
+                answer = new Message(0, EMPTY_BYTE_ARRAY, MessageType.error, EMPTY_BYTE_ARRAY, EMPTY_BYTE_ARRAY, EMPTY_BYTE_ARRAY);
                 break;
         }
         
@@ -72,25 +89,59 @@ public class Server{
     }
     
     private Message ClientLogin(Message msg){
+        boolean loginSuccess = false;
+        byte[] sessionKey = null;
+        int sessionId = 0;
+        
         if(mAuthList.CheckAuth(msg.getSessionId(), msg.getlParam(), msg.getrParam(), mRsa.getPrivateKey())){
-            AuthNode node = mAuthList.findById(msg.getSessionId());
-            byte[] loginCrypted = node.getLogin();
-            byte[] passwordCrypted = node.getPasswrod();
-            byte[] xorKey = msg.getlParam();
-            
-            return new Message(
-                msg.getSessionId(),
-                Message.MessageType.authLogin,
-                "Login success.".getBytes(),
-                NULLMESSAGE,
-                NULLMESSAGE);
+            try {
+                AuthNode node = mAuthList.findById(msg.getSessionId());
+                byte[] xorKey = RSA.decryptB(msg.getlParam(), mRsa.getPrivateKey());
+                String loginDeCrypted = new String(XOR.Encrypt(node.getLogin(), xorKey));
+                String passwordDeCrypted =  new String(XOR.Encrypt(node.getPassword(), xorKey));
+                
+                if(userExists(loginDeCrypted, passwordDeCrypted)){
+                    sessionKey = new byte[SESSION_KEY_LENGTH];
+                    random.nextBytes(sessionKey);
+                    User user = new User(0, sessionKey, loginDeCrypted, passwordDeCrypted, xorKey);
+                    sessionId = mUserList.addUser(user);
+                    loginSuccess = true;
+                    sessionKey = XOR.Encrypt(sessionKey, xorKey);
+                    ServerLogger.EndAuth(sessionId, loginSuccess, loginDeCrypted, passwordDeCrypted);
+                }
+            } catch (NoSuchAlgorithmException ex) {
+                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (NoSuchPaddingException ex) {
+                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (InvalidKeyException ex) {
+                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (IllegalBlockSizeException ex) {
+                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (BadPaddingException ex) {
+                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+            }
         }
-        return new Message(
-                msg.getSessionId(),
-                Message.MessageType.authLogin,
-                "Login failed.".getBytes(),
-                NULLMESSAGE,
-                NULLMESSAGE);
+        if(loginSuccess){
+            return new Message(
+                    sessionId, 
+                    sessionKey, 
+                    MessageType.authSuccess, 
+                    EMPTY_BYTE_ARRAY, EMPTY_BYTE_ARRAY, EMPTY_BYTE_ARRAY);
+        }else{
+            ServerLogger.EndAuth(msg.getSessionId(), false, "", "");
+            return new Message(
+                    0, 
+                    EMPTY_BYTE_ARRAY, 
+                    MessageType.authFail, 
+                    EMPTY_BYTE_ARRAY, EMPTY_BYTE_ARRAY, EMPTY_BYTE_ARRAY);
+        }
+    }
+    
+    private boolean userExists(String login, String password){
+        //TODO
+        //проверка существования комбинации
+        //соответствующих логина-пароля
+        return true;
     }
     
     private Message StartAuthentication(Message msg){
@@ -99,7 +150,7 @@ public class Server{
         AuthNode node = new AuthNode(0, msg.getMessage(), msg.getlParam(), msg.getrParam());
         int authId = mAuthList.addUser(node);
         
-        return new Message(authId, Message.MessageType.authGetPublicKey, "RSAkey".getBytes(), publicKey, NULLMESSAGE);
+        return new Message(authId, EMPTY_BYTE_ARRAY, MessageType.authGetRsaKey, "RSAkey".getBytes(), publicKey, EMPTY_BYTE_ARRAY);
     }
     
     public void Stop(){
