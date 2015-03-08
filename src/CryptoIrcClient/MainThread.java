@@ -1,19 +1,29 @@
 package CryptoIrcClient;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import CryptoIrcClient.GUI.LoginFrame;
 
 public class MainThread {
     
-    private static Client client;
+    private static Client sClient;
+    private static String sLogin;
+    private static String sPassword;
     
     public static void main(String[] args){
-        client = new Client("LOGIN", "PASSWORD", 64);
-        client.StartAuthentication();
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException ex) {
-            Logger.getLogger(MainThread.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        LoginFrame loginFrame = new LoginFrame();
+        loginFrame.setVisible(true);
     }
+    
+    public static void Login(){
+        sClient = new Client(sLogin, sPassword, 64);
+        sClient.StartAuthentication();
+    }
+
+    public static void setLogin(String login) {
+        MainThread.sLogin = login;
+    }
+
+    public static void setPassword(String password) {
+        MainThread.sPassword = password;
+    }
+
 }
